@@ -2,6 +2,7 @@
 
 const { exec } = require("child_process");
 const fs = require("fs");
+const inquirer = require("inquirer");
 
 const promiseExec = (command, messageIfError) => {
   try {
@@ -56,42 +57,6 @@ const commitReleaseToRepo = async (version) => {
   }
 };
 
-const updateREADME = (version) => {
-  try {
-    fs.writeFileSync(
-      "./README.md",
-      `## Hypothesis.js\n\nOfficial JavaScript library for the Hypothesis API.\n\n[Read the Documentation](https://www.notion.so/Hypothesis-js-Reference-3618ad6c2d5d4447a762a8f63f627efa)`
-    );
-  } catch (exception) {
-    throw new Error(`[release.updateREADME] ${exception.message}`);
-  }
-};
-
-const setHomepageURL = (version) => {
-  try {
-    const packageJsonContents = fs.readFileSync("./package.json", "utf-8");
-    const packageJson = JSON.parse(packageJsonContents);
-    packageJson.homepage = `https://www.notion.so/Hypothesis-js-Reference-3618ad6c2d5d4447a762a8f63f627efa`;
-    const stringifiedPackageJson = JSON.stringify(packageJson, null, 2);
-    fs.writeFileSync("./package.json", stringifiedPackageJson);
-  } catch (exception) {
-    throw new Error(`[release.setHomepageURL] ${exception.message}`);
-  }
-};
-
-const setReleaseVersionInSource = (version) => {
-  try {
-    const sourceContents = fs.readFileSync("./dist/index.min.js", "utf-8");
-    const sourceContentsWithVersion = sourceContents.replace(
-      new RegExp('this.version=""'),
-      `this.version="${version}"`
-    );
-    fs.writeFileSync("./dist/index.min.js", sourceContentsWithVersion);
-  } catch (exception) {
-    throw new Error(`[release.setReleaseVersionInSource] ${exception.message}`);
-  }
-};
-
 const setProductionAPIURL = () => {
   try {
     const sourceContents = fs.readFileSync("./dist/index.min.js", "utf-8");
@@ -107,14 +72,6 @@ const setProductionAPIURL = () => {
   }
 };
 
-const runBuild = async () => {
-  try {
-    await promiseExec("npm run build");
-  } catch (exception) {
-    throw new Error(`[release.runBuild] ${exception.message}`);
-  }
-};
-
 const runTests = async () => {
   try {
     await promiseExec(
@@ -126,34 +83,106 @@ const runTests = async () => {
   }
 };
 
-const getMajorVerison = (version) => {
+const runBuild = async () => {
   try {
-    const versionParts = version.split(".");
-    return `v${versionParts[0]}`;
+    await promiseExec("npm run build");
   } catch (exception) {
-    throw new Error(`[release.getMajorVerison] ${exception.message}`);
+    throw new Error(`[release.runBuild] ${exception.message}`);
+  }
+};
+
+const incrementVersion = (currentVersion, releaseType) => {
+  try {
+    // NOTE: Cast version parts as integers so we can do math on them below.
+    const versionParts = currentVersion
+      .split(".")
+      .map((versionPart) => parseInt(versionPart, 10));
+
+    if (currentVersion && releaseType && releaseType.includes("Major")) {
+      return `${versionParts[0] + 1}.0.0`;
+    }
+
+    if (currentVersion && releaseType && releaseType.includes("Minor")) {
+      return `${versionParts[0]}.${versionParts[1] + 1}.0`;
+    }
+
+    if (currentVersion && releaseType && releaseType.includes("Patch")) {
+      return `${versionParts[0]}.${versionParts[1]}.${versionParts[2] + 1}`;
+    }
+
+    return currentVersion;
+  } catch (exception) {
+    throw new Error(`[release.incrementVersion] ${exception.message}`);
+  }
+};
+
+const getCurrentVersionFromPackageJSON = (packageJSON) => {
+  try {
+    return packageJSON && packageJSON.version;
+  } catch (exception) {
+    throw new Error(
+      `[release.getCurrentVersionFromPackageJSON] ${exception.message}`
+    );
+  }
+};
+
+const getPackageLockJSON = () => {
+  try {
+    // NOTE: Reads relative to where the command was initially executed in the command line.
+    const packageLockJSON = fs.readFileSync("./package-lock.json", "utf-8");
+    return packageLockJSON && JSON.parse(packageLockJSON);
+  } catch (exception) {
+    throw new Error(`[release.getPackageLockJSON] ${exception.message}`);
+  }
+};
+
+const getPackageJSON = () => {
+  try {
+    // NOTE: Reads relative to where the command was initially executed in the command line.
+    const packageJSON = fs.readFileSync("./package.json", "utf-8");
+    return packageJSON && JSON.parse(packageJSON);
+  } catch (exception) {
+    throw new Error(`[release.getPackageJSON] ${exception.message}`);
   }
 };
 
 const release = async (version) => {
   try {
-    await runTests();
-    console.log("✅ Tests passed!");
+    const packageJSON = getPackageJSON();
+    const packageLockJSON = getPackageLockJSON();
+    const currentVersion = getCurrentVersionFromPackageJSON(packageJSON);
+
+    if (!packageJSON) {
+      throw new Error(
+        "Could not find a package.json file for this project. Are you running this command in the right directory?"
+      );
+    }
+
+    if (!currentVersion) {
+      throw new Error(
+        "Could not find a current version in package.json. Try again or double-check your package.json has a version set."
+      );
+    }
+
+    const { releaseType } = await inquirer.prompt([
+      {
+        type: "list",
+        name: "releaseType",
+        message: "What type of release are you deploying?",
+        choices: ["Major (x.0.0)", "Minor (0.x.0)", "Patch (0.0.x)"],
+      },
+    ]);
+
+    const version = incrementVersion(currentVersion, releaseType);
 
     await runBuild();
     console.log("✅ Build complete!");
 
+    await runTests();
+    console.log("✅ Tests passed!");
+
     setProductionAPIURL();
     console.log("✅ Production URLs updated!");
-
-    setReleaseVersionInSource(version);
-    console.log("✅ Release version updated!");
-
-    setHomepageURL(version);
-    console.log("✅ Homepage updated in package.json!");
-
-    updateREADME(version);
-    console.log("✅ README.md updated!");
 
     await commitReleaseToRepo(version);
     console.log("✅ Release committed to repo!");
@@ -171,4 +200,4 @@ const release = async (version) => {
   }
 };
 
-release(process.argv[2]);
+release();

@@ -8,9 +8,9 @@ export default [
     input: "src/index.js",
     output: {
       file: pkg.main,
-      name: "command",
-      format: "umd"
+      name: "hypothesis",
+      format: "umd",
     },
-    plugins: [resolve(), commonjs(), terser()]
-  }
+    plugins: [resolve(), commonjs(), terser()],
+  },
 ];

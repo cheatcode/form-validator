@@ -1,11 +1,11 @@
 {
   "name": "@hypothesisapp/js",
-  "version": "0.1.0",
+  "version": "0.0.0",
   "description": "Official JavaScript library for the Hypothesis API.",
   "main": "dist/index.min.js",
   "scripts": {
     "release": "node ./release.js",
-    "build": "rollup --c",
+    "build": "rollup --c && node ./swapProductionUrls",
     "dev": "rollup -c -w",
     "test": "jest",
     "test-watch": "jest --watch"
@@ -29,6 +29,7 @@
     "@rollup/plugin-commonjs": "^11.0.2",
     "@rollup/plugin-node-resolve": "^7.1.1",
     "aws-sdk": "^2.590.0",
+    "inquirer": "^7.3.3",
     "jest": "^25.0.0",
     "rollup": "^1.32.0",
     "rollup-plugin-terser": "^5.2.0"

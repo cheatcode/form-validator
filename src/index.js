@@ -1,10 +1,9 @@
 const axios = require("axios");
 
-class CommandAPI {
+class HypothesisAPI {
   constructor(apiKey, options = {}) {
     if (!apiKey) this._throwFormattedError("A valid API key is required.");
     this.apiKey = apiKey;
-    this.version = "";
     this.customerId = options.customerId || null;
     this.debug = options.debug || false;
 
@@ -13,18 +12,18 @@ class CommandAPI {
       logout: this._logoutCustomer.bind(this),
       create: this._createCustomer.bind(this),
       update: this._updateCustomer.bind(this),
-      delete: this._deleteCustomer.bind(this)
+      delete: this._deleteCustomer.bind(this),
     };
   }
 
   _logDebugMessage(message) {
-    console.log("[[[ Command.js DEBUG ]]]");
+    console.log("( Hypothesis.js )");
     console.log(message);
   }
 
   _throwFormattedError(error) {
     throw new Error(
-      `[Command] ${error} See https://portal.oncommand.io/docs/command-js/${this.version}/introduction.`
+      `[Hypothesis] ${error} See https://www.notion.so/Hypothesis-js-Reference-3618ad6c2d5d4447a762a8f63f627efa.`
     );
   }
 
@@ -34,25 +33,25 @@ class CommandAPI {
         method,
         url: `http://localhost:4000/api/v1${path}`,
         headers: {
-          "x-api-key": this.apiKey
+          "x-api-key": this.apiKey,
         },
-        data
+        data,
       });
     }
 
-    // NOTE: http://localhost:4000/api is dynamically swapped to https://api.oncommand.io in /release.js when releasing a new version. Leave as-is for local dev.
+    // NOTE: http://localhost:4000/api is dynamically swapped to https://api.hypothesis.app in /release.js when releasing a new version. Leave as-is for local dev.
     return axios({
       method,
       url: `http://localhost:4000/api/v1${path}`,
       headers: {
-        "x-api-key": this.apiKey
+        "x-api-key": this.apiKey,
       },
-      data
+      data,
     })
-      .then(response => {
+      .then((response) => {
         return response && response.data && response.data.data;
       })
-      .catch(error => {
+      .catch((error) => {
         if (error && error.response) {
           const { status } = error.response;
           const errorMessage =
@@ -93,7 +92,7 @@ class CommandAPI {
     this.customerId = customerId;
 
     return this._request("put", `/customers/login`, {
-      customerId
+      customerId,
     });
   }
 
@@ -105,7 +104,7 @@ class CommandAPI {
       "put",
       `/customers/logout`,
       {
-        customerId: customerId || this.customerId
+        customerId: customerId || this.customerId,
       },
       () => {
         this.customerId = null;
@@ -117,7 +116,7 @@ class CommandAPI {
     if (!customer) throw new Error("Must pass a customer.");
 
     return this._request("post", "/customers", {
-      ...customer
+      ...customer,
     });
   }
 
@@ -126,7 +125,7 @@ class CommandAPI {
     if (!update) throw new Error("Must pass an update for the customer.");
 
     return this._request("put", `/customers/${customerId}`, {
-      ...update
+      ...update,
     });
   }
 
@@ -136,4 +135,4 @@ class CommandAPI {
   }
 }
 
-export default CommandAPI;
+export default HypothesisAPI;

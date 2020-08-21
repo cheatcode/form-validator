@@ -53,6 +53,7 @@ const commitReleaseToRepo = async (version) => {
   try {
     await promiseExec(`git add . && git commit -m "release v${version}"`);
   } catch (exception) {
+    console.warn(exception);
     throw new Error(`[release.commitReleaseToRepo] ${exception.message}`);
   }
 };

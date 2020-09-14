@@ -1,6 +1,6 @@
 {
   "name": "@hypothesisapp/js",
-  "version": "0.3.0",
+  "version": "0.2.0",
   "description": "Official JavaScript library for the Hypothesis API.",
   "main": "dist/index.min.js",
   "scripts": {

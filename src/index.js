@@ -13,6 +13,9 @@ class HypothesisAPI {
       create: this._createCustomer.bind(this),
       update: this._updateCustomer.bind(this),
       delete: this._deleteCustomer.bind(this),
+      bulk: {
+        create: this._bulkCreateCustomers.bind(this),
+      },
     };
   }
 
@@ -81,6 +84,17 @@ class HypothesisAPI {
     const body = { key };
 
     if (this.customerId) body.customerId = this.customerId;
+
+    if (
+      !this.customerId &&
+      body.customerId &&
+      properties &&
+      properties.customerId
+    ) {
+      body.customerId = properties.customerId;
+      delete properties.customerId;
+    }
+
     if (properties) body.properties = properties;
 
     return this._request("post", "/behavior", body);
@@ -132,6 +146,12 @@ class HypothesisAPI {
   _deleteCustomer(customerId) {
     if (!customerId) throw new Error("Must pass a customerId.");
     return this._request("delete", `/customers/${customerId}`);
+  }
+
+  _bulkCreateCustomers(options) {
+    if (!options || (options && !options.customers))
+      throw new Error("Must pass an array of customers.");
+    return this._request("post", `/customers/bulk`);
   }
 }
 

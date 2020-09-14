@@ -4,10 +4,11 @@ class HypothesisAPI {
   constructor(apiKey, options = {}) {
     if (!apiKey) this._throwFormattedError("A valid API key is required.");
     this.apiKey = apiKey;
-    this.customerId = options.customerId || null;
+    this.productCustomerId = options.productCustomerId || null;
     this.debug = options.debug || false;
 
     this.customers = {
+      current: this._showCurrentCustomer.bind(this),
       login: this._loginCustomer.bind(this),
       logout: this._logoutCustomer.bind(this),
       create: this._createCustomer.bind(this),
@@ -42,6 +43,15 @@ class HypothesisAPI {
       });
     }
 
+    console.log({
+      method,
+      url: `http://localhost:4000/api/v1${path}`,
+      headers: {
+        "x-api-key": this.apiKey,
+      },
+      data,
+    });
+
     // NOTE: http://localhost:4000/api is dynamically swapped to https://api.hypothesis.app in /release.js when releasing a new version. Leave as-is for local dev.
     return axios({
       method,
@@ -55,6 +65,7 @@ class HypothesisAPI {
         return response && response.data && response.data.data;
       })
       .catch((error) => {
+        console.warn(error.response);
         if (error && error.response) {
           const { status } = error.response;
           const errorMessage =
@@ -66,13 +77,14 @@ class HypothesisAPI {
 
           console.warn(`[${status}] ${errorMessage}`);
 
-          if (error.response.data) {
-            console.warn(error.response.data);
-          }
-
           if (this.debug && error.response.data && error.response.data.data) {
             this._logDebugMessage(error.response.data.data.error);
             this._logDebugMessage(error.response.data.data.validationErrors);
+          }
+
+          if (error.response.data) {
+            console.warn(error.response.data);
+            return error.response.data;
           }
         }
       });
@@ -83,16 +95,11 @@ class HypothesisAPI {
 
     const body = { key };
 
-    if (this.customerId) body.customerId = this.customerId;
+    if (this.productCustomerId) body.productCustomerId = this.productCustomerId;
 
-    if (
-      !this.customerId &&
-      body.customerId &&
-      properties &&
-      properties.customerId
-    ) {
-      body.customerId = properties.customerId;
-      delete properties.customerId;
+    if (!this.productCustomerId && properties && properties.productCustomerId) {
+      body.productCustomerId = properties.productCustomerId;
+      delete properties.productCustomerId;
     }
 
     if (properties) body.properties = properties;
@@ -100,28 +107,38 @@ class HypothesisAPI {
     return this._request("post", "/behavior", body);
   }
 
-  _loginCustomer(customerId) {
-    if (!customerId) throw new Error("Must pass a customerId.");
+  _showCurrentCustomer() {
+    const response = {
+      productCustomerId: this.productCustomerId,
+    };
 
-    this.customerId = customerId;
+    console.log(response);
+
+    return response;
+  }
+
+  _loginCustomer(productCustomerId) {
+    if (!productCustomerId) throw new Error("Must pass a productCustomerId.");
+
+    this.productCustomerId = productCustomerId;
 
     return this._request("put", `/customers/login`, {
-      customerId,
+      productCustomerId,
     });
   }
 
-  _logoutCustomer(customerId) {
-    if (!customerId && !this.customerId)
-      throw new Error("Must have a customerId to logout.");
+  _logoutCustomer(productCustomerId) {
+    if (!productCustomerId && !this.productCustomerId)
+      throw new Error("Must have a productCustomerId to logout.");
 
     return this._request(
       "put",
       `/customers/logout`,
       {
-        customerId: customerId || this.customerId,
+        productCustomerId: productCustomerId || this.productCustomerId,
       },
       () => {
-        this.customerId = null;
+        this.productCustomerId = null;
       }
     );
   }
@@ -134,24 +151,24 @@ class HypothesisAPI {
     });
   }
 
-  _updateCustomer(customerId, update) {
-    if (!customerId) throw new Error("Must pass a customerId.");
+  _updateCustomer(productCustomerId, update) {
+    if (!productCustomerId) throw new Error("Must pass a productCustomerId.");
     if (!update) throw new Error("Must pass an update for the customer.");
 
-    return this._request("put", `/customers/${customerId}`, {
+    return this._request("put", `/customers/${productCustomerId}`, {
       ...update,
     });
   }
 
-  _deleteCustomer(customerId) {
-    if (!customerId) throw new Error("Must pass a customerId.");
-    return this._request("delete", `/customers/${customerId}`);
+  _deleteCustomer(productCustomerId) {
+    if (!productCustomerId) throw new Error("Must pass a productCustomerId.");
+    return this._request("delete", `/customers/${productCustomerId}`);
   }
 
   _bulkCreateCustomers(options) {
-    if (!options || (options && !options.customers))
-      throw new Error("Must pass an array of customers.");
-    return this._request("post", `/customers/bulk`);
+    if (!options || (options && !options.productCustomers))
+      throw new Error("Must pass an array of productCustomers.");
+    return this._request("post", `/customers/bulk`, options);
   }
 }
 

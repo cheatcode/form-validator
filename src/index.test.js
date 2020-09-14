@@ -57,16 +57,16 @@ describe("index.js", () => {
         "x-api-key": "apiKey123",
       },
       data: {
-        customerId: "1234",
+        productCustomerId: "1234",
       },
     });
   });
 
-  test("it throws an error if no customerId is passed to customers.login", () => {
+  test("it throws an error if no productCustomerId is passed to customers.login", () => {
     expect(() => {
       const hypothesis = new Hypothesis("apiKey123");
       hypothesis.customers.login();
-    }).toThrow("Must pass a customerId.");
+    }).toThrow("Must pass a productCustomerId.");
   });
 
   test("it can track a customer logout", () => {
@@ -80,16 +80,16 @@ describe("index.js", () => {
         "x-api-key": "apiKey123",
       },
       data: {
-        customerId: "1234",
+        productCustomerId: "1234",
       },
     });
   });
 
-  test("it throws an error if no customerId is set on the hypothesis instance on customers.logout", () => {
+  test("it throws an error if no productCustomerId is set on the hypothesis instance on customers.logout", () => {
     expect(() => {
       const hypothesis = new Hypothesis("apiKey123");
       hypothesis.customers.logout();
-    }).toThrow("Must have a customerId to logout.");
+    }).toThrow("Must have a productCustomerId to logout.");
   });
 
   test("it can create a customer", () => {
@@ -131,11 +131,11 @@ describe("index.js", () => {
     });
   });
 
-  test("it throws an error if no customerId is passed to customers.update", () => {
+  test("it throws an error if no productCustomerId is passed to customers.update", () => {
     expect(() => {
       const hypothesis = new Hypothesis("apiKey123");
       hypothesis.customers.update();
-    }).toThrow("Must pass a customerId.");
+    }).toThrow("Must pass a productCustomerId.");
   });
 
   test("it throws an error if no update is passed to customers.update", () => {
@@ -158,10 +158,44 @@ describe("index.js", () => {
     });
   });
 
-  test("it throws an error if no customerId is passed to customers.delete", () => {
+  test("it throws an error if no productCustomerId is passed to customers.delete", () => {
     expect(() => {
       const hypothesis = new Hypothesis("apiKey123");
       hypothesis.customers.delete();
-    }).toThrow("Must pass a customerId.");
+    }).toThrow("Must pass a productCustomerId.");
+  });
+
+  test("it can bulk create customers", () => {
+    const hypothesis = new Hypothesis("apiKey123");
+
+    hypothesis.customers.bulk.create({
+      productCustomers: [
+        {
+          emailAddress: "test.customer@gmail.com",
+        },
+      ],
+    });
+
+    expect(axios).toHaveBeenCalledWith({
+      method: "post",
+      url: `https://api.hypothesis.app/v1/customers/bulk`,
+      headers: {
+        "x-api-key": "apiKey123",
+      },
+      data: {
+        productCustomers: [
+          {
+            emailAddress: "test.customer@gmail.com",
+          },
+        ],
+      },
+    });
+  });
+
+  test("it throws an error if no customers are passed to customers.bulk.create", () => {
+    expect(() => {
+      const hypothesis = new Hypothesis("apiKey123");
+      hypothesis.customers.bulk.create();
+    }).toThrow("Must pass an array of productCustomers.");
   });
 });

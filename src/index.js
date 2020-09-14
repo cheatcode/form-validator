@@ -43,15 +43,6 @@ class HypothesisAPI {
       });
     }
 
-    console.log({
-      method,
-      url: `http://localhost:4000/api/v1${path}`,
-      headers: {
-        "x-api-key": this.apiKey,
-      },
-      data,
-    });
-
     // NOTE: http://localhost:4000/api is dynamically swapped to https://api.hypothesis.app in /release.js when releasing a new version. Leave as-is for local dev.
     return axios({
       method,
@@ -80,10 +71,6 @@ class HypothesisAPI {
           if (this.debug && error.response.data && error.response.data.data) {
             this._logDebugMessage(error.response.data.data.error);
             this._logDebugMessage(error.response.data.data.validationErrors);
-          }
-
-          if (error.response.data) {
-            console.warn(error.response.data);
             return error.response.data;
           }
         }

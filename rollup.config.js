@@ -8,7 +8,7 @@ export default [
     input: "src/index.js",
     output: {
       file: pkg.main,
-      name: "hypothesis",
+      name: "form-validator",
       format: "umd",
     },
     plugins: [resolve(), commonjs(), terser()],

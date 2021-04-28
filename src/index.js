@@ -1,162 +1,250 @@
-const axios = require("axios");
+import throttle from "./throttle";
+import validators from "./validators";
 
-class HypothesisAPI {
-  constructor(apiKey, options = {}) {
-    if (!apiKey) this._throwFormattedError("A valid API key is required.");
-    this.apiKey = apiKey;
-    this.productCustomerId = options.productCustomerId || null;
-    this.debug = options.debug || false;
+class ValidateForm {
+  constructor(form, options = {}) {
+    this.fieldsToListenToForChanges = [
+      "checkbox",
+      "color",
+      "date",
+      "datetime-local",
+      "email",
+      "file",
+      "hidden",
+      "month",
+      "number",
+      "password",
+      "radio",
+      "range",
+      "search",
+      "tel",
+      "text",
+      "time",
+      "url",
+      "week",
+    ];
 
-    this.customers = {
-      current: this._showCurrentCustomer.bind(this),
-      login: this._loginCustomer.bind(this),
-      logout: this._logoutCustomer.bind(this),
-      create: this._createCustomer.bind(this),
-      update: this._updateCustomer.bind(this),
-      delete: this._deleteCustomer.bind(this),
-      bulk: {
-        create: this._bulkCreateCustomers.bind(this),
-      },
+    this.defaultValidationErrors = {
+      required: "This field is required.",
+      email: "Must be a valid email.",
     };
-  }
 
-  _logDebugMessage(message) {
-    console.log("( Hypothesis.js )");
-    console.log(message);
-  }
-
-  _throwFormattedError(error) {
-    throw new Error(
-      `[Hypothesis] ${error} See https://www.notion.so/Hypothesis-js-Reference-3618ad6c2d5d4447a762a8f63f627efa.`
-    );
-  }
-
-  _request(method, path, data = {}) {
-    if (this.debug) {
-      this._logDebugMessage({
-        method,
-        url: `http://localhost:4000/api/v1${path}`,
-        headers: {
-          "x-api-key": this.apiKey,
-        },
-        data,
-      });
+    if (!form) {
+      console.warn(
+        "[validateForm] Must pass an HTML <form></form> element to validate."
+      );
     }
 
-    // NOTE: http://localhost:4000/api is dynamically swapped to https://api.hypothesis.app in /release.js when releasing a new version. Leave as-is for local dev.
-    return axios({
-      method,
-      url: `http://localhost:4000/api/v1${path}`,
-      headers: {
-        "x-api-key": this.apiKey,
-      },
-      data,
-    })
-      .then((response) => {
-        return response && response.data && response.data.data;
-      })
-      .catch((error) => {
-        console.warn(error.response);
-        if (error && error.response) {
-          const { status } = error.response;
-          const errorMessage =
-            error.response &&
-            error.response.data &&
-            error.response.data &&
-            error.response.data.data &&
-            error.response.data.data.error;
+    if (!options.onSubmit) {
+      console.warn(
+        "[validateForm] Must pass an onSubmit function at options.onSubmit (or, as a prop on the <ValidateForm /> component)."
+      );
+    }
 
-          console.warn(`[${status}] ${errorMessage}`);
+    this.form = form;
+    this.setOptions(options);
+    this.attachEventListeners();
+  }
 
-          if (this.debug && error.response.data && error.response.data.data) {
-            this._logDebugMessage(error.response.data.data.error);
-            this._logDebugMessage(error.response.data.data.validationErrors);
-            return error.response.data;
-          }
+  setOptions(options = {}) {
+    this.rules = options.rules || {};
+    this.messages = options.messages || {};
+    this.onSubmit = options.onSubmit;
+    this.fields = this.serialize();
+  }
+
+  updateOptions(options = {}) {
+    this.setOptions(options);
+  }
+
+  serialize() {
+    if (this.form) {
+      const fields = Object.keys(this.rules).map((name) => {
+        const element = this.form.querySelector(`[name="${name}"]`);
+        const type = element?.type;
+        const listenForChanges = this.fieldsToListenToForChanges.includes(type);
+
+        return {
+          listenForChanges,
+          type,
+          name,
+          element,
+          validations: Object.entries(this.rules[name])
+            .map(([validationName, validationRule]) => {
+              return {
+                name: validationName,
+                rule: validationRule,
+                valid: false,
+              };
+            })
+            .sort((v1, v2) => {
+              if (v1.name > v2.name) {
+                return 1;
+              } else {
+                return -1;
+              }
+            }),
+          errorMessages: Object.keys(this.messages[name]),
+        };
+      });
+
+      return fields;
+    }
+  }
+
+  attachEventListeners() {
+    if (this.form) {
+      const submitEventListener = (event) => {
+        event.stopPropagation();
+        event.preventDefault();
+
+        const isValid = this.validate();
+
+        if (isValid) {
+          this.onSubmit();
         }
-      });
-  }
+      };
 
-  track(key, properties) {
-    if (!key) throw new Error("Must pass a key to track.");
-
-    const body = { key };
-
-    if (this.productCustomerId) body.productCustomerId = this.productCustomerId;
-
-    if (!this.productCustomerId && properties && properties.productCustomerId) {
-      body.productCustomerId = properties.productCustomerId;
-      delete properties.productCustomerId;
+      this.form.removeEventListener("submit", submitEventListener);
+      this.form.addEventListener("submit", submitEventListener);
     }
 
-    if (properties) body.properties = properties;
+    this.fields.forEach((field) => {
+      if (field?.element && field?.listenForChanges) {
+        const fieldEventListener = () => {
+          throttle(() => {
+            this.validate(field.name);
+          }, 100);
+        };
 
-    return this._request("post", "/behavior", body);
-  }
+        field.element.removeEventListener("input", fieldEventListener);
+        field.element.addEventListener("input", fieldEventListener);
 
-  _showCurrentCustomer() {
-    const response = {
-      productCustomerId: this.productCustomerId,
-    };
-
-    console.log(response);
-
-    return response;
-  }
-
-  _loginCustomer(productCustomerId) {
-    if (!productCustomerId) throw new Error("Must pass a productCustomerId.");
-
-    this.productCustomerId = productCustomerId;
-
-    return this._request("put", `/customers/login`, {
-      productCustomerId,
-    });
-  }
-
-  _logoutCustomer(productCustomerId) {
-    if (!productCustomerId && !this.productCustomerId)
-      throw new Error("Must have a productCustomerId to logout.");
-
-    return this._request(
-      "put",
-      `/customers/logout`,
-      {
-        productCustomerId: productCustomerId || this.productCustomerId,
-      },
-      () => {
-        this.productCustomerId = null;
+        field.element.removeEventListener("change", fieldEventListener);
+        field.element.addEventListener("change", fieldEventListener);
       }
+    });
+  }
+
+  validate(fieldName = null) {
+    if (!fieldName) {
+      this.clearExistingErrors();
+
+      this.fields.forEach((field) => {
+        this.validateField(field);
+      });
+
+      return this.checkIfValid();
+    } else {
+      const field = this.fields.find((field) => field.name === fieldName);
+      this.validateField(field);
+      return this.checkIfValid();
+    }
+  }
+
+  checkIfValid() {
+    const fieldsWithValidations = this.fields.map((field) => {
+      return field.validations.some((validation) => {
+        return !validation.valid;
+      });
+    });
+
+    return !fieldsWithValidations.includes(true);
+  }
+
+  validateField(field) {
+    const fieldInput = this.form.querySelector(`[name="${field.name}"]`);
+    const isChecked = ["checkbox", "radio"].includes(field.type);
+    const value = !isChecked ? field?.element?.value?.trim() : null;
+    const checked = isChecked ? field?.element?.checked : null;
+
+    field.validations.forEach((validation) => {
+      if (
+        !this.isValidValue(isChecked, isChecked ? checked : value, validation)
+      ) {
+        this.markValidationAsInvalid(field, validation.name);
+        this.renderError(
+          field.element,
+          this.messages[field.name][validation.name] ||
+            this.defaultValidationErrors[validation.name]
+        );
+      } else {
+        this.markValidationAsValid(field, validation.name);
+      }
+    });
+
+    const hasInvalidValidations = field.validations.some((validation) => {
+      return !validation.valid;
+    });
+
+    if (hasInvalidValidations) {
+      fieldInput.classList.add("error");
+      fieldInput.focus();
+    }
+
+    if (!hasInvalidValidations) {
+      fieldInput.classList.remove("error");
+      this.clearExistingError(field.name);
+    }
+
+    return !hasInvalidValidations;
+  }
+
+  markValidationAsInvalid(field, validation) {
+    const updatedValidations = [...field.validations];
+    const validationToMark = updatedValidations.find(
+      (updatedValidation) => updatedValidation.name === validation
     );
+    validationToMark.valid = false;
   }
 
-  _createCustomer(customer) {
-    if (!customer) throw new Error("Must pass a customer.");
-
-    return this._request("post", "/customers", {
-      ...customer,
-    });
+  markValidationAsValid(field, validation) {
+    const updatedValidations = [...field.validations];
+    const validationToMark = updatedValidations.find(
+      (updatedValidation) => updatedValidation.name === validation
+    );
+    validationToMark.valid = true;
   }
 
-  _updateCustomer(productCustomerId, update) {
-    if (!productCustomerId) throw new Error("Must pass a productCustomerId.");
-    if (!update) throw new Error("Must pass an update for the customer.");
+  isValidValue(isChecked, value, validation) {
+    const validator = validators[validation.name];
 
-    return this._request("put", `/customers/${productCustomerId}`, {
-      ...update,
-    });
+    if (validator) {
+      return validator(validation.rule, value, isChecked);
+    }
   }
 
-  _deleteCustomer(productCustomerId) {
-    if (!productCustomerId) throw new Error("Must pass a productCustomerId.");
-    return this._request("delete", `/customers/${productCustomerId}`);
+  clearExistingErrors() {
+    if (this.form) {
+      this.form
+        .querySelectorAll(".input-hint.error")
+        .forEach((element) => element.remove());
+    }
   }
 
-  _bulkCreateCustomers(options) {
-    if (!options || (options && !options.productCustomers))
-      throw new Error("Must pass an array of productCustomers.");
-    return this._request("post", `/customers/bulk`, options);
+  clearExistingError(name = "") {
+    const existingError = document.getElementById(`error-${name}`);
+    if (existingError) {
+      existingError.remove();
+    }
+  }
+
+  renderError(element, message = "") {
+    if (element) {
+      this.clearExistingError(element.name);
+
+      const error = document.createElement("p");
+
+      error.classList.add("input-hint");
+      error.classList.add("error");
+      error.setAttribute("id", `error-${element.name}`);
+      error.innerText = message;
+
+      element.after(error);
+    }
   }
 }
 
-export default HypothesisAPI;
+const validateForm = (form, options) => new ValidateForm(form, options);
+
+export default validateForm;

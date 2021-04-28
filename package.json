@@ -1,7 +1,7 @@
 {
-  "name": "@hypothesisapp/js",
-  "version": "0.5.0",
-  "description": "Official JavaScript library for the Hypothesis API.",
+  "name": "@cheatcodetuts/form-validator",
+  "version": "0.0.0",
+  "description": "JavaScript form validation library.",
   "main": "dist/index.min.js",
   "scripts": {
     "release": "node ./release.js",
@@ -12,23 +12,21 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/hypothesisapp/js"
+    "url": "git+https://github.com/cheatcode/form-validator"
   },
   "keywords": [
     "npm",
     "package",
     "template"
   ],
-  "author": "hypothesisapp",
+  "author": "cheatcode",
   "license": "MIT",
-  "homepage": "https://www.notion.so/Hypothesis-js-Reference-3618ad6c2d5d4447a762a8f63f627efa",
   "dependencies": {
-    "axios": "^0.19.0"
+    "validator": "^13.6.0"
   },
   "devDependencies": {
     "@rollup/plugin-commonjs": "^11.0.2",
     "@rollup/plugin-node-resolve": "^7.1.1",
-    "aws-sdk": "^2.590.0",
     "inquirer": "^7.3.3",
     "jest": "^25.5.4",
     "rollup": "^1.32.0",

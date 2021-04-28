@@ -57,21 +57,6 @@ const commitReleaseToRepo = async (version) => {
   }
 };
 
-const setProductionAPIURL = () => {
-  try {
-    const sourceContents = fs.readFileSync("./dist/index.min.js", "utf-8");
-    const developmentAPIRegex = new RegExp("http://localhost:4000/api", "ig");
-    const scriptContentsSanitized = sourceContents.replace(
-      developmentAPIRegex,
-      "https://api.hypothesis.app"
-    );
-
-    fs.writeFileSync("./dist/index.min.js", scriptContentsSanitized);
-  } catch (exception) {
-    throw new Error(`[release.setProductionAPIURL] ${exception.message}`);
-  }
-};
-
 const runTests = async () => {
   try {
     await promiseExec(
@@ -149,7 +134,6 @@ const getPackageJSON = () => {
 const release = async (version) => {
   try {
     const packageJSON = getPackageJSON();
-    const packageLockJSON = getPackageLockJSON();
     const currentVersion = getCurrentVersionFromPackageJSON(packageJSON);
 
     if (!packageJSON) {
@@ -180,9 +164,6 @@ const release = async (version) => {
 
     await runTests();
     console.log("✅ Tests passed!");
-
-    setProductionAPIURL();
-    console.log("✅ Production URLs updated!");
 
     await commitReleaseToRepo(version);
     console.log("✅ Release committed to repo!");

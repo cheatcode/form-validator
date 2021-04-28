@@ -1,4 +1,3 @@
-## v0.1.0 - September 15th, 2020
+## v0.0.0 - April 28th, 2021
 
-- Initial public release of Hypothesis.js
-
+- Migrating form validation from the CheatCode Next.js Boilerplate.
